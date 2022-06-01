@@ -1,0 +1,239 @@
+---
+title: "Model2"
+author: "Arsalan Chhotani"
+date: "4/26/2022"
+output: html_document
+---
+# Classifying Digital against (Not Digital) Paper & Cards
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caTools)
+library(randomForest)
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(nnet)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(party)
+library(partykit)
+library(mfx)
+library(censReg)
+library(carData)
+library(zoo)
+library(sandwich)
+library(ggplot2)
+library(gridExtra)
+library(lmtest)
+library(readxl)
+library(car)
+library(lattice)
+library(survival)
+library(Formula)
+library(nortest)
+library(AER)
+library(broom)
+library(xtable)
+library(knitr)
+library(tidyr)
+library(stargazer)
+library(systemfit)
+library(gains)
+library(ROSE)
+```
+
+```{r}
+df_original <- readr::read_csv("Data2.csv")
+#prop.table(table(df_original$pi_p2p_tree, df_original$in_person))
+dim(df_original)
+head(df_original)
+
+colnames(df)
+
+head(df)
+dim(df)
+head(df_original)
+colnames(df_original)
+df <- dplyr::select(df_original,pi_p2p_tree,year,id,date,work_cat,age_sq,amnt,in_person,race_cat,merch,census_division,highest_education_cat,gender,marital_status,other_assets,device,end_cash_bal_range,dc_logo_1,e_exp_cover,shops_online,hh_size,income_hh)
+#dc_rewards_1,paypref_50to100,paypref_lt10
+#df2 <- dplyr::select(df_original,pi_p2p_tree,highest_education_cat,work_cat,race_cat,merch_combined,marital_status_cat,pi_cat,end_cash_bal_range,age_sq,gender_cat,age_gen,age_cat,census_division_cat,age,amnt,amnt_orig,bill,cc_chip_1,cc_rewards_1,cc_type_1,census_division,checker,chk_bal,chk_bal_time,date,dc_logo_1,dc_num,dc_rewards_1,denom_1_end,denom_1_stored,denom_10_end,denom_10_stored,denom_100_end,denom_100_stored,denom_2_end,denom_2_stored,denom_20_end,denom_20_stored,denom_5_end,denom_5_stored,denom_50_end,denom_50_stored,device,diary_day,`diary_day-1`,discount,dow_weight,e_exp_cc,e_exp_chk,e_exp_chk_saved,e_exp_cover,e_exp_csh,e_exp_csh_saved,e_exp_fam,e_exp_heloc,e_exp_od,e_exp_pawn,e_exp_payday,e_exp_prepaid,e_exp_prepaid_saved,e_exp_sav,e_exp_sav_saved,e_exp_tot_saved,end_cash_bal,gender,hh_size,highest_education,hispaniclatino,home_debt,id,home_value,homeowner,in_person,inc_alimony,inc_child,inc_gov,inc_intdiv,inc_rent,inc_retempl,inc_retsav,inc_self,inc_ss,inc_wage,inc_wage_freq,income,income_hh,interest_level,last_income_date,login_date,marital_status,merch,merch_orig,module,next_income_date,other_assets,other_debts,payee,payment,paypref_100plus,paypref_10to25,paypref_25to50,paypref_50to100,paypref_b1,paypref_b1_why,paypref_b2,paypref_b2_why,paypref_lt10,paypref_nb1,paypref_nb1_why,paypref_nb2,paypref_nb2_why,paypref_web,paypref_web_why,pi,pi_orig,scpc_date,shops_online,time,tran,traveled,work_occupation,year)
+
+
+df <- filter(df, device != 8)
+df<-na.omit(df)
+df <- subset(df, select = -c(id,date))
+
+#df_digital_cards <- df[!(df$pi_p2p_tree=="Digital"),]
+#unique(df_digital_cards$pi_p2p_tree)
+df_digital_cards<-df
+#df_digital_cards <- filter(df, pi_p2p_tree == "Digital" | pi_p2p_tree == "Cards")
+#unique(df_digital_cards$pi_p2p_tree)
+
+dim(df_digital_cards)
+head(df_digital_cards)
+
+#df_digital_cards$amnt <- log(df_digital_cards$amnt)
+#df_digital_cards$income_hh <- log(df_digital_cards$income_hh)
+#df_digital_cards$other_debts <- log(df_digital_cards$other_debts)
+df_digital_cards$pi_p2p_tree = as.factor(df_digital_cards$pi_p2p_tree)
+df_digital_cards$work_cat = as.factor(df_digital_cards$work_cat)
+df_digital_cards$merch = as.factor(df_digital_cards$merch)
+df_digital_cards$race_cat = as.factor(df_digital_cards$race_cat)
+df_digital_cards$race_cat <- relevel(df_digital_cards$race_cat, "1. White")
+df_digital_cards$end_cash_bal_range= as.factor(df_digital_cards$end_cash_bal_range)
+
+#df_digital_cards$merch_combined = as.factor(df_digital_cards$merch_combined)
+#df_digital_cards$highest_education = as.factor(df_digital_cards$highest_education)
+df_digital_cards$highest_education_cat = as.factor(df_digital_cards$highest_education_cat)
+df_digital_cards$census_division = as.factor(df_digital_cards$census_division)
+df_digital_cards$marital_status = as.factor(df_digital_cards$marital_status)
+df_digital_cards$end_cash_bal_range = as.factor(df_digital_cards$end_cash_bal_range)
+#df_digital_cards$tran = as.factor(df_digital_cards$tran)
+##df_digital_cards$paypref_50to100 = as.factor(df_digital_cards$paypref_50to100)
+#df_digital_cards$paypref_web = as.factor(df_digital_cards$paypref_web)
+
+
+
+df_digital_cards$in_person = as.factor(df_digital_cards$in_person)
+df_digital_cards$device = as.factor(df_digital_cards$device)
+df_digital_cards$dc_logo_1 = as.factor(df_digital_cards$dc_logo_1)
+#df_digital_cards$dc_rewards_1 = as.factor(df_digital_cards$dc_rewards_1)
+#df_digital_cards$paypref_lt10 = as.factor(df_digital_cards$paypref_lt10)
+df_digital_cards$gender = as.factor(df_digital_cards$gender)
+df_digital_cards$shops_online = as.factor(df_digital_cards$shops_online)
+#df_digital_cards$bill = as.factor(df_digital_cards$bill)
+```
+
+```{r}
+
+#df_digital_cards<-na.omit(df_digital_cards)
+table(df_digital_cards$pi_p2p_tree)
+df_digital_cards$pi_p2p_tree <- ifelse(df_digital_cards$pi_p2p_tree == "Digital", 1 ,0)
+table(df_digital_cards$pi_p2p_tree)
+prop.table(table(df_digital_cards$pi_p2p_tree))
+
+
+df_digital_cards <- ovun.sample(pi_p2p_tree~.,data = df_digital_cards, method = "both", p = 0.5)$data
+#table(over)
+
+#dim(over)
+
+
+barplot(prop.table(table(df_digital_cards$pi_p2p_tree)),
+        col = rainbow(2),
+        ylim = c(0, 0.7),
+        main = "Class Distribution")
+
+```
+
+```{r}
+df_digital_cards<-fastDummies::dummy_cols(df_digital_cards,select_columns=c("work_cat","census_division","marital_status_cat","end_cash_bal_range","merch","race_cat","highest_education_cat","tran","paypref_50to100","paypref_web","device"),remove_selected_columns = T, remove_first_dummy = T)
+
+head(df_digital_cards)
+
+
+
+
+
+#unique(df_digital_cards$pi_p2p_tree)
+
+#head(df_digital_cards)
+
+
+df2018 <- filter(df_digital_cards, year == 2018)
+df2019 <- filter(df_digital_cards, year == 2019)
+df2020 <- filter(df_digital_cards, year == 2020)
+
+df2018 <- as.data.frame(df2018)
+df2019 <- as.data.frame(df2019)
+df2020 <- as.data.frame(df2020)
+
+dim(df2018)
+dim(df2019)
+dim(df2020)
+#Perfection
+
+#partition 2018
+set.seed(2)
+train.index18 <- sample(c(1:dim(df2018)[1]), dim(df2018)[1]*0.6)
+train.df18 <- df2018[train.index18, ]
+valid.df18 <- df2018[-train.index18, ]
+
+#partition 2019
+set.seed(7)
+train.index19 <- sample(c(1:dim(df2019)[1]), dim(df2019)[1]*0.6)
+train.df19 <- df2019[train.index19, ]
+valid.df19 <- df2019[-train.index19, ]
+
+#partition 2020
+set.seed(5)
+train.index20 <- sample(c(1:dim(df2020)[1]), dim(df2020)[1]*0.6)
+train.df20 <- df2020[train.index20, ]
+valid.df20 <- df2020[-train.index20, ]
+
+#merging all three datasets
+#training
+train.index <- rbind(train.index18,train.index19,train.index20)
+train.df <- rbind(train.df18,train.df19,train.df20)
+valid.df <- rbind(valid.df18,valid.df19,valid.df20)
+colnames(train.df)
+```
+
+
+```{r}
+#colnames(train.df)
+t1.logit.reg <- glm(pi_p2p_tree ~ ., data = train.df, family = binomial (link = "logit"))
+options(scipen=999)
+```
+
+```{r}
+summary(t1.logit.reg)
+```
+
+```{r}
+ round(data.frame(summary(t1.logit.reg)$coefficients, odds = exp(coef(t1.logit.reg))),5)
+
+
+
+```
+
+```{r}
+t1.logit.reg.pred <- predict(t1.logit.reg, valid.df, type = "response")
+data.frame(actual = valid.df$pi_p2p_tree[1:5], predicted = t1.logit.reg.pred[1:5])
+
+#class(t1.logit.reg.pred)
+
+t1.logit.reg.pred2<-ifelse(t1.logit.reg.pred>0.55, 1 ,0)
+confusionMatrix(as.factor(t1.logit.reg.pred2), as.factor(valid.df$pi_p2p_tree),positive='1')
+```
+
+```{r}
+dim(valid.df)
+length(t1.logit.reg.pred)
+
+
+gain <- gains(valid.df$pi_p2p_tree, t1.logit.reg.pred, groups=10)
+# plot lift chart
+plot(c(0,gain$cume.pct.of.total*sum(valid.df$pi_p2p_tree))~c(0,gain$cume.obs),
+xlab="# cases", ylab="Cumulative", main="", type="l")
+lines(c(0,sum(valid.df$pi_p2p_tree))~c(0, dim(valid.df)[1]), lty=2)
+```
+
+```{r}
+library(stats)
+AIC(t1.logit.reg)
+
+
+```
+
+```{r}
+# compute deciles and plot decile-wise chart
+heights <- gain$mean.resp/mean( valid.df$pi_p2p_tree)
+midpoints <- barplot(heights, names.arg = gain$depth, ylim = c(0, 3),
+                     xlab = "Percentile", ylab = "Mean Response", main = "Decile-wise lift chart")
+# add labels to columns
+text(midpoints, heights+0.5, labels=round(heights, 1), cex = 0.8)
+```
+
